@@ -14,7 +14,7 @@ async function main() {
   const signer = new ethers.Wallet(pk, provider);
 
   const PROXY = "0xCc4d8af26ee276B0657f7e034C40D42caA166F04"; // Your Proxy
-  const IMPL_NAME = "COFUNDSaleV3";
+  const IMPL_NAME = "COFUNDSaleV4";
   const NEW_DURATION_SECONDS = 5 * 60;
 
   console.log("Upgrading with:", await signer.getAddress());
