@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import "./COFUNDSaleV1.sol";
+// CHANGED: Import V2 instead of V1
+import "./COFUNDSaleV2.sol";
 
-contract COFUNDSaleV3 is COFUNDSaleV1 {
+// CHANGED: Inherit from COFUNDSaleV2
+contract COFUNDSaleV3 is COFUNDSaleV2 {
     struct Round {
         uint256 rate;
         uint256 softCapWei;
@@ -22,17 +24,17 @@ contract COFUNDSaleV3 is COFUNDSaleV1 {
 
     event RoundStarted(uint256 indexed roundId, uint256 rate, uint256 softCapWei, uint256 endTime);
 
-    // Admin starts a new round only when previous is settled
     function startNewRound(uint256 rate_, uint256 softCapWei_, uint256 endTime_) external onlyOwner {
         require(rate_ > 0, "rate_ zero");
         require(softCapWei_ > 0, "softCapWei_ zero");
         require(endTime_ > block.timestamp, "endTime must be future");
 
-        if (currentRound != 0) {
+        if (currentRound == 0) {
+            require(finalized, "V1 not finalized");
+        } else {
             require(rounds[currentRound].finalized, "previous round not finalized");
-            require(address(this).balance == 0, "previous round not settled");
         }
-
+        
         currentRound += 1;
         rounds[currentRound] = Round({
             rate: rate_,
@@ -46,7 +48,6 @@ contract COFUNDSaleV3 is COFUNDSaleV1 {
         emit RoundStarted(currentRound, rate_, softCapWei_, endTime_);
     }
 
-    // Round-aware buy
     function buyTokens() public payable virtual override {
         require(currentRound != 0, "round not started");
         Round storage r = rounds[currentRound];
@@ -63,9 +64,12 @@ contract COFUNDSaleV3 is COFUNDSaleV1 {
         emit Bought(msg.sender, msg.value, tokens);
     }
 
-    // Round-aware finalize
-    function finalize() external virtual override {
-        require(currentRound != 0, "round not started");
+    function finalize() public virtual override {
+        if (currentRound == 0) {
+             super.finalize();
+             return;
+        }
+
         Round storage r = rounds[currentRound];
 
         require(!r.finalized, "already finalized");
@@ -81,55 +85,80 @@ contract COFUNDSaleV3 is COFUNDSaleV1 {
         emit Finalized(r.successful);
     }
 
-    // Round-aware claim
-    function claim() external virtual override nonReentrant {
-        require(currentRound != 0, "round not started");
-        Round storage r = rounds[currentRound];
+    function claim() public virtual override nonReentrant {
+        bool claimedSomething = false;
 
-        require(r.finalized, "not finalized");
-        require(r.successful, "sale not successful");
-        require(!claimedOrRefundedByRound[currentRound][msg.sender], "already claimed/refunded");
+        if (currentRound != 0) {
+            Round storage r = rounds[currentRound];
+            if (r.finalized && r.successful && !claimedOrRefundedByRound[currentRound][msg.sender]) {
+                uint256 amount = entitlementByRound[currentRound][msg.sender];
+                if (amount > 0) {
+                    claimedOrRefundedByRound[currentRound][msg.sender] = true;
+                    token.mint(msg.sender, amount);
+                    emit Claimed(msg.sender, amount);
+                    claimedSomething = true;
+                }
+            }
+        }
 
-        uint256 amount = entitlementByRound[currentRound][msg.sender];
-        require(amount > 0, "no tokens to claim");
+        if (finalized && successful && !claimedOrRefunded[msg.sender]) {
+            uint256 amount = entitlementTokens[msg.sender];
+            if (amount > 0) {
+                claimedOrRefunded[msg.sender] = true;
+                token.mint(msg.sender, amount);
+                emit Claimed(msg.sender, amount);
+                claimedSomething = true;
+            }
+        }
 
-        claimedOrRefundedByRound[currentRound][msg.sender] = true;
-        token.mint(msg.sender, amount);
-
-        emit Claimed(msg.sender, amount);
+        require(claimedSomething, "no tokens to claim");
     }
 
-    // Round-aware refund
-    function refund() external virtual override nonReentrant {
-        require(currentRound != 0, "round not started");
-        Round storage r = rounds[currentRound];
+    function refund() public virtual override nonReentrant {
+        bool refundedSomething = false;
 
-        require(r.finalized, "not finalized");
-        require(!r.successful, "sale was successful");
-        require(!claimedOrRefundedByRound[currentRound][msg.sender], "already claimed/refunded");
+        if (currentRound != 0) {
+            Round storage r = rounds[currentRound];
+            if (r.finalized && !r.successful && !claimedOrRefundedByRound[currentRound][msg.sender]) {
+                uint256 amount = contributionByRound[currentRound][msg.sender];
+                if (amount > 0) {
+                    claimedOrRefundedByRound[currentRound][msg.sender] = true;
+                    (bool ok, ) = msg.sender.call{value: amount}("");
+                    require(ok, "refund failed");
+                    emit Refunded(msg.sender, amount);
+                    refundedSomething = true;
+                }
+            }
+        }
 
-        uint256 amount = contributionByRound[currentRound][msg.sender];
-        require(amount > 0, "no contribution");
+        if (finalized && !successful && !claimedOrRefunded[msg.sender]) {
+            uint256 amount = contributionWei[msg.sender];
+            if (amount > 0) {
+                claimedOrRefunded[msg.sender] = true;
+                (bool ok, ) = msg.sender.call{value: amount}("");
+                require(ok, "refund failed");
+                emit Refunded(msg.sender, amount);
+                refundedSomething = true;
+            }
+        }
 
-        claimedOrRefundedByRound[currentRound][msg.sender] = true;
-
-        (bool ok, ) = msg.sender.call{value: amount}("");
-        require(ok, "refund failed");
-
-        emit Refunded(msg.sender, amount);
+        require(refundedSomething, "no contribution to refund");
     }
 
-    // Round-aware withdraw
-    function withdraw() external virtual override nonReentrant {
-        require(currentRound != 0, "round not started");
-        Round storage r = rounds[currentRound];
-
-        require(r.finalized, "not finalized");
-        require(r.successful, "sale not successful");
+    function withdraw() public virtual override nonReentrant {
         require(msg.sender == owner() || msg.sender == treasury, "not authorized");
-
         uint256 balance = address(this).balance;
         require(balance > 0, "no funds");
+
+        bool canWithdraw = false;
+
+        if (currentRound == 0) {
+            if (finalized && successful) canWithdraw = true;
+        } else {
+            if (rounds[currentRound].finalized && rounds[currentRound].successful) canWithdraw = true;
+        }
+
+        require(canWithdraw, "sale not successful");
 
         (bool ok, ) = treasury.call{value: balance}("");
         require(ok, "withdraw failed");
@@ -137,40 +166,31 @@ contract COFUNDSaleV3 is COFUNDSaleV1 {
         emit Withdrawn(treasury, balance);
     }
 
-    // Helpful view functions for frontend
-    function currentRate() external view returns (uint256) {
-        return rounds[currentRound].rate;
+    // CHANGED: Override setEndTime from V2
+    // We change visibility to 'public' (valid override for external) or keep 'external'
+    // Since we don't need internal calls, 'external' is fine.
+    function setEndTime(uint256 newEndTime) external override onlyOwner {
+        require(newEndTime > block.timestamp, "must be future");
+
+        if (currentRound == 0) {
+            // Logic for V1/Legacy (Updates V1 state variable)
+            require(!finalized, "already finalized");
+            endTime = newEndTime; 
+        } else {
+            // Logic for V3 Rounds (Updates current round struct)
+            require(!rounds[currentRound].finalized, "current round finalized");
+            rounds[currentRound].endTime = newEndTime;
+        }
     }
 
-    function currentSoftCapWei() external view returns (uint256) {
-        return rounds[currentRound].softCapWei;
-    }
-
-    function currentEndTime() external view returns (uint256) {
-        return rounds[currentRound].endTime;
-    }
-
-    function currentTotalRaised() external view returns (uint256) {
-        return rounds[currentRound].totalRaised;
-    }
-
-    function currentFinalized() external view returns (bool) {
-        return rounds[currentRound].finalized;
-    }
-
-    function currentSuccessful() external view returns (bool) {
-        return rounds[currentRound].successful;
-    }
-
-    function currentContributionWei(address user) external view returns (uint256) {
-        return contributionByRound[currentRound][user];
-    }
-
-    function currentEntitlementTokens(address user) external view returns (uint256) {
-        return entitlementByRound[currentRound][user];
-    }
-
-    function currentClaimedOrRefunded(address user) external view returns (bool) {
-        return claimedOrRefundedByRound[currentRound][user];
-    }
+    // View functions
+    function currentRate() external view returns (uint256) { return rounds[currentRound].rate; }
+    function currentSoftCapWei() external view returns (uint256) { return rounds[currentRound].softCapWei; }
+    function currentEndTime() external view returns (uint256) { return rounds[currentRound].endTime; }
+    function currentTotalRaised() external view returns (uint256) { return rounds[currentRound].totalRaised; }
+    function currentFinalized() external view returns (bool) { return rounds[currentRound].finalized; }
+    function currentSuccessful() external view returns (bool) { return rounds[currentRound].successful; }
+    function currentContributionWei(address user) external view returns (uint256) { return contributionByRound[currentRound][user]; }
+    function currentEntitlementTokens(address user) external view returns (uint256) { return entitlementByRound[currentRound][user]; }
+    function currentClaimedOrRefunded(address user) external view returns (bool) { return claimedOrRefundedByRound[currentRound][user]; }
 }

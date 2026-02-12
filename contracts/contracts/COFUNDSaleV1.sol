@@ -66,7 +66,8 @@ contract COFUNDSaleV1 is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
         emit Bought(msg.sender, msg.value, tokens);
     }
 
-    function finalize() external virtual {
+    // CHANGED: external -> public (Safe: allows super.finalize() in V3)
+    function finalize() public virtual {
         require(!finalized, "already finalized");
         require(block.timestamp >= endTime, "not ended");
 
@@ -82,7 +83,8 @@ contract COFUNDSaleV1 is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
         emit Finalized(successful);
     }
 
-    function claim() external virtual nonReentrant {
+    // CHANGED: external -> public (Safe: allows V3 override to call super)
+    function claim() public virtual nonReentrant {
         require(finalized, "not finalized");
         require(successful, "sale not successful");
         require(!claimedOrRefunded[msg.sender], "already claimed/refunded");
@@ -97,7 +99,8 @@ contract COFUNDSaleV1 is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
         emit Claimed(msg.sender, amount);
     }
 
-    function refund() external virtual nonReentrant {
+    // CHANGED: external -> public (Safe: allows V3 override to call super)
+    function refund() public virtual nonReentrant {
         require(finalized, "not finalized");
         require(!successful, "sale was successful");
         require(!claimedOrRefunded[msg.sender], "already claimed/refunded");
@@ -113,7 +116,8 @@ contract COFUNDSaleV1 is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
         emit Refunded(msg.sender, amount);
     }
 
-    function withdraw() external virtual nonReentrant {
+    // CHANGED: external -> public (Safe: allows V3 override to call super)
+    function withdraw() public virtual nonReentrant {
         require(finalized, "not finalized");
         require(successful, "sale not successful");
         require(msg.sender == owner() || msg.sender == treasury, "not authorized");
