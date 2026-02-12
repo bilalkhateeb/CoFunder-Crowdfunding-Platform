@@ -1,0 +1,63 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js
+.next/
+out/
+frontend/.next/
+frontend/out/
+
+# Hardhat
+artifacts/
+cache/
+contracts/artifacts/
+contracts/cache/
+typechain-types/
+contracts/typechain-types/
+
+# Build outputs
+dist/
+build/
+.tsc/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+contracts/.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.nyc_output/
+
+# Hardhat deployment
+ignition/deployments/
+
+# Vercel
+.vercel/
+
+# Temporary files
+*.tmp
+temp/
