@@ -20,9 +20,7 @@ export const SALE_ABI = [
   "function refund()",
   "function withdraw()",
   
-  // --- EVENTS (Crucial for Leaderboard) ---
-  // We include 'indexed' to match standard Solidity events. 
-  // If your contract emits non-indexed events, remove the word 'indexed'.
+  // --- EVENTS ---
   "event Bought(address indexed buyer, uint256 weiAmount, uint256 tokenAmount)",
   "event Refunded(address indexed user, uint256 amount)", 
   "event RoundStarted(uint256 indexed roundId, uint256 rate, uint256 softCapWei, uint256 endTime, string title, string description)",
@@ -32,9 +30,12 @@ export const SALE_ABI = [
   "function currentRound() view returns (uint256)",
   
   // --- V4 Round Data & Escape Hatch ---
-  // Note: V4 struct has title & description at the end
-  "function rounds(uint256) view returns (uint256 rate, uint256 softCapWei, uint256 endTime, uint256 totalRaised, bool finalized, bool successful, bool fundsWithdrawn, string title, string description)",
+  // FIXED: Removed title/description from rounds() as they are stored separately in V4
+  "function rounds(uint256) view returns (uint256 rate, uint256 softCapWei, uint256 endTime, uint256 totalRaised, bool finalized, bool successful, bool fundsWithdrawn)",
   
+  // ADDED: The V4 helper to get full data including title/description
+  "function getRoundInfo(uint256 id) view returns (uint256 rate, uint256 softCap, uint256 endTime, uint256 totalRaised, bool finalized, bool successful, string title, string description)",
+
   "function claimRound(uint256 id)",
   "function refundRound(uint256 id)",
   "function withdrawRound(uint256 id)",

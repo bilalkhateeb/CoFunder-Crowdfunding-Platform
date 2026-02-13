@@ -182,7 +182,7 @@ export function useCoFund() {
       const isV1Valid = !v1Final || v1Success;
 
       for (let i = 1; i <= Number(currentRoundId); i++) {
-        const r = await saleRO.rounds(i);
+        const r = await saleRO.getRoundInfo(i);
         if (!r.finalized || r.successful) validRounds.push(i);
       }
 

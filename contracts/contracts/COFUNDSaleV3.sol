@@ -24,7 +24,7 @@ contract COFUNDSaleV3 is COFUNDSaleV2 {
 
     event RoundStarted(uint256 indexed roundId, uint256 rate, uint256 softCapWei, uint256 endTime);
 
-    function startNewRound(uint256 rate_, uint256 softCapWei_, uint256 endTime_) external onlyOwner {
+    function startNewRound(uint256 rate_, uint256 softCapWei_, uint256 endTime_) public onlyOwner {
         if (currentRound == 0) require(finalized, "V1 not finalized");
         else require(rounds[currentRound].finalized, "prev round not finalized");
         

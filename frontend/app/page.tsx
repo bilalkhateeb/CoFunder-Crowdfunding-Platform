@@ -70,8 +70,8 @@ export default function Home() {
                         <span className={`px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded border ${isRoundActive ? "bg-green-500/10 text-green-400 border-green-500/20" : isRoundFinalized ? "bg-zinc-800 text-zinc-400 border-zinc-700" : "bg-red-500/10 text-red-400 border-red-500/20"}`}>{isRoundActive ? "Live" : (isRoundFinalized ? "Finalized" : "Ended")}</span>
                         <span className="text-zinc-400 text-[10px] font-mono uppercase">Round {sale?.currentRound?.toString() || "V1"}</span>
                      </div>
-                     <h2 className="text-2xl font-bold text-white tracking-tight drop-shadow-xl">{sale?.title || "Current Round"}</h2>
-                     <p className="text-zinc-300 text-xs max-w-lg font-medium drop-shadow-md leading-relaxed mt-1">{sale?.description || "Join the funding round to secure your token allocation."}</p>
+                     <h2 className="text-4xl font-bold text-white tracking-tight drop-shadow-xl">{sale?.title || "Current Round"}</h2>
+                     <p className="text-zinc-300 text-base max-w-lg font-medium drop-shadow-md leading-relaxed mt-1">{sale?.description || "Join the funding round to secure your token allocation."}</p>
                  </div>
              </div>
              <div className="grid grid-cols-3 gap-3 mb-4">
@@ -88,7 +88,7 @@ export default function Home() {
                           <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs text-zinc-500">ETH</span>
                         </div>
                         <button onClick={() => actions.buy(ethToBuy)} disabled={!isRoundActive || isRoundFinalized} className="w-full py-2.5 bg-white text-black rounded-lg font-bold text-xs hover:bg-zinc-200 active:scale-[0.98] transition-all disabled:opacity-30 disabled:hover:bg-white z-10 relative">{!isRoundActive ? "Round Unavailable" : "Confirm Purchase"}</button>
-                        {txStatus && <div className="mt-2 text-[9px] font-mono text-center text-zinc-500 animate-pulse">{txStatus}</div>}
+                        {txStatus && <div className="mt-2 text-[10px] font-mono font-semibold text-center text-zinc-200 animate-pulse">{txStatus}</div>}
                  </div>
                  <div className="bg-zinc-900/50 border border-white/5 p-5 rounded-xl flex flex-col justify-center h-full">
                         <h3 className="text-[9px] font-bold uppercase text-zinc-500 mb-3 tracking-widest">Your Position</h3>
@@ -160,7 +160,7 @@ export default function Home() {
                   <div className="flex-1 content-end">
                     <button onClick={() => actions.startRound(adminForm.rate, adminForm.cap, adminForm.mins, adminForm.title, adminForm.desc)} className="w-full py-2 bg-blue-600 text-white rounded-lg font-black text-xs uppercase shadow-lg shadow-blue-900/20 hover:bg-blue-500 transition-all">Start Next</button>
                     {/* NOTIFICATION: Only one, right here */}
-                    {txStatus && <div className="mt-2 text-[9px] font-mono text-center text-zinc-500 animate-pulse">{txStatus}</div>}
+                    {txStatus && <div className="mt-2 text-[10px] font-mono font-semibold text-center text-zinc-200 animate-pulse">{txStatus}</div>}
                   </div>
                </div>
              </div>
