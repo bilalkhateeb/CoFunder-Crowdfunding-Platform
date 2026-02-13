@@ -150,23 +150,29 @@ export function useCoFund() {
 
       const hist: RoundInfo[] = [];
       for (let i = 1; i <= Number(cRound); i++) {
-        const [r, uCont, uEnt, uClm] = await Promise.all([
+        const [rStruct, rMeta, uCont, uEnt, uClm] = await Promise.all([
+          saleRO.rounds(i),       
           saleRO.getRoundInfo(i), 
           account ? saleRO.contributionByRound(i, account) : 0n,
           account ? saleRO.entitlementByRound(i, account) : 0n,
           account ? saleRO.claimedOrRefundedByRound(i, account) : false
         ]);
+
         hist.push({
           id: i,
-          rate: r.rate,
-          softCapWei: r.softCap, // Note: getRoundInfo returns 'softCap', not 'softCapWei'
-          endTime: r.endTime,
-          totalRaised: r.totalRaised,
-          finalized: r.finalized,
-          successful: r.successful,
-          fundsWithdrawn: false,
-          title: r.title,       
-          description: r.description,
+          rate: rStruct.rate,
+          softCapWei: rStruct.softCapWei,
+          endTime: rStruct.endTime,
+          totalRaised: rStruct.totalRaised,
+          finalized: rStruct.finalized,
+          successful: rStruct.successful,
+          
+          // FIX: Now we read the actual status from the contract
+          fundsWithdrawn: rStruct.fundsWithdrawn, 
+          
+          // AND we still get our titles
+          title: rMeta.title,
+          description: rMeta.description,
           
           userContribution: uCont,
           userEntitlement: uEnt,
