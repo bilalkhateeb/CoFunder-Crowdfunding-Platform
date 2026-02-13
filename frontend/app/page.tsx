@@ -2,10 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { formatEther, formatUnits } from "ethers";
-// Import from the same directory
 import { useCoFund } from "./useCoFund"; 
 
-// --- UI Components ---
 function NavButton({ id, active, label, onClick }: { id: string, active: string, label: string, onClick: (id: any) => void }) {
   return (
     <button onClick={() => onClick(id)} className={`px-3 py-1.5 text-xs font-medium tracking-wide transition-all rounded-md ${active === id ? "bg-zinc-100 text-zinc-900" : "text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50"}`}>
@@ -20,30 +18,22 @@ export default function Home() {
   const { account, chainOk, sale, user, rounds, leaderboard, txStatus, connect, disconnect, refreshLeaderboard, actions } = useCoFund();
   const [activeTab, setActiveTab] = useState<"invest" | "history" | "leaderboard" | "admin">("invest");
   
-  // FIX 1: Default 'mins' set to "5" instead of "20"
   const [adminForm, setAdminForm] = useState({ title: "", desc: "", mins: "5", rate: "200", cap: "1" });
   const [ethToBuy, setEthToBuy] = useState("0.05");
-
-  // FIX 2: Live Timer State
-  // We track 'now' in a state variable so the UI updates every second
   const [now, setNow] = useState(Math.floor(Date.now() / 1000));
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setNow(Math.floor(Date.now() / 1000));
-    }, 1000);
+    const timer = setInterval(() => { setNow(Math.floor(Date.now() / 1000)); }, 1000);
     return () => clearInterval(timer);
   }, []);
 
   const isAdmin = sale && account && (account.toLowerCase() === sale.owner.toLowerCase());
-  // Calculate secondsLeft using the dynamic 'now' state
   const secondsLeft = sale ? Math.max(0, Number(sale.endTime) - now) : 0;
   const isRoundActive = secondsLeft > 0;
   const isRoundFinalized = sale?.finalized === true;
 
   return (
     <main className="min-h-screen bg-black text-white font-sans selection:bg-blue-600 selection:text-white">
-      {/* NAVBAR */}
       <nav className="border-b border-white/5 bg-black/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="mx-auto max-w-5xl px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -71,10 +61,8 @@ export default function Home() {
       </nav>
 
       <div className="mx-auto max-w-5xl p-4">
-        {/* INVEST TAB */}
         {activeTab === "invest" && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-             {/* Hero */}
              <div className="w-full h-56 rounded-xl overflow-hidden border border-white/5 bg-zinc-900 relative group mb-4">
                  <img src="/funding-help.png" alt="Round Banner" className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-700" />
                  <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/40 to-transparent p-6 flex flex-col justify-start">
@@ -86,24 +74,21 @@ export default function Home() {
                      <p className="text-zinc-300 text-xs max-w-lg font-medium drop-shadow-md leading-relaxed mt-1">{sale?.description || "Join the funding round to secure your token allocation."}</p>
                  </div>
              </div>
-             {/* Stats */}
              <div className="grid grid-cols-3 gap-3 mb-4">
                 <div className="bg-zinc-900/50 border border-white/5 p-4 rounded-xl backdrop-blur-sm"><p className="text-zinc-500 text-[9px] font-bold uppercase tracking-wider mb-1">Total Raised</p><p className="text-xl font-mono text-white font-medium">{sale ? formatEther(sale.totalRaised) : "0"}<span className="text-[10px] text-zinc-600 ml-1">ETH</span></p></div>
                 <div className="bg-zinc-900/50 border border-white/5 p-4 rounded-xl backdrop-blur-sm"><p className="text-zinc-500 text-[9px] font-bold uppercase tracking-wider mb-1">Soft Cap</p><p className="text-xl font-mono text-white font-medium">{sale ? formatEther(sale.softCapWei) : "0"}<span className="text-[10px] text-zinc-600 ml-1">ETH</span></p></div>
                 <div className="bg-zinc-900/50 border border-white/5 p-4 rounded-xl backdrop-blur-sm"><p className="text-zinc-500 text-[9px] font-bold uppercase tracking-wider mb-1">Remaining</p><p className={`text-xl font-mono font-medium ${secondsLeft > 0 && secondsLeft < 300 ? "text-red-400" : "text-blue-400"}`}>{secondsLeft > 0 ? `${Math.floor(secondsLeft/60)}m ${secondsLeft%60}s` : "Ended"}</p></div>
              </div>
-             {/* Actions */}
              <div className="grid md:grid-cols-2 gap-4">
                  <div className="bg-zinc-900 border border-white/10 p-5 rounded-xl shadow-lg relative overflow-hidden">
                         <div className="absolute -top-10 -right-10 w-32 h-32 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
                         <div className="flex justify-between items-center mb-4 relative z-10"><h2 className="text-sm font-bold uppercase tracking-wide text-white">Buy Tokens</h2><div className="text-right"><p className="font-mono text-[10px] text-zinc-400">{sale?.rate.toString()} TKN/ETH</p></div></div>
                         <div className="relative mb-3 z-10">
-                          {/* FIX 3: Added step="0.01" to fix the arrow increment issue */}
-                          <input type="number" step="0.1" value={ethToBuy} onChange={e => setEthToBuy(e.target.value)} className="w-full bg-black/50 border border-white/10 p-3 pr-10 rounded-lg text-xl font-mono text-white outline-none focus:border-blue-500/50 transition-all placeholder-zinc-700" placeholder="0.05" />
+                          <input type="number" step="0.01" value={ethToBuy} onChange={e => setEthToBuy(e.target.value)} className="w-full bg-black/50 border border-white/10 p-3 pr-10 rounded-lg text-xl font-mono text-white outline-none focus:border-blue-500/50 transition-all placeholder-zinc-700" placeholder="0.05" />
                           <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs text-zinc-500">ETH</span>
                         </div>
                         <button onClick={() => actions.buy(ethToBuy)} disabled={!isRoundActive || isRoundFinalized} className="w-full py-2.5 bg-white text-black rounded-lg font-bold text-xs hover:bg-zinc-200 active:scale-[0.98] transition-all disabled:opacity-30 disabled:hover:bg-white z-10 relative">{!isRoundActive ? "Round Unavailable" : "Confirm Purchase"}</button>
-                        {txStatus && <div className="mt-2 text-[9px] font-mono text-center text-zinc-500">{txStatus}</div>}
+                        {txStatus && <div className="mt-2 text-[9px] font-mono text-center text-zinc-500 animate-pulse">{txStatus}</div>}
                  </div>
                  <div className="bg-zinc-900/50 border border-white/5 p-5 rounded-xl flex flex-col justify-center h-full">
                         <h3 className="text-[9px] font-bold uppercase text-zinc-500 mb-3 tracking-widest">Your Position</h3>
@@ -118,7 +103,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* HISTORY TAB */}
         {activeTab === "history" && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 max-w-2xl mx-auto space-y-2">
              <h2 className="text-lg font-bold mb-3 text-white">Campaign History</h2>
@@ -139,7 +123,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* LEADERBOARD TAB */}
         {activeTab === "leaderboard" && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 max-w-3xl mx-auto">
              <div className="flex justify-between items-center mb-4"><h2 className="text-lg font-bold text-white">Top Funders</h2><button onClick={refreshLeaderboard} className="text-[9px] font-bold uppercase border border-zinc-700 px-3 py-1 rounded text-zinc-400 hover:text-white hover:border-zinc-500 transition-colors">Refresh</button></div>
@@ -147,7 +130,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* ADMIN TAB */}
         {activeTab === "admin" && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 grid md:grid-cols-2 gap-4 items-stretch">
              <div className="flex flex-col gap-4">
@@ -159,7 +141,7 @@ export default function Home() {
                <div className="bg-zinc-900 border border-white/5 p-5 rounded-xl flex-1 flex flex-col min-h-0">
                    <h3 className="text-xs font-bold mb-3 text-zinc-500 uppercase tracking-widest flex-none">Withdraw</h3>
                    <div className="space-y-1.5 overflow-y-auto pr-1 flex-1 custom-scrollbar">
-                      {rounds.filter(r => r.successful && r.finalized && !r.fundsWithdrawn).length === 0 ? (<div className="text-[10px] text-zinc-600 text-center py-4">No funds to withdraw</div>) : (rounds.filter(r => r.successful && r.finalized && !r.fundsWithdrawn).map(r => (<div key={r.id} className="bg-black/20 p-2 rounded-lg flex justify-between items-center border border-white/5 shrink-0"><div><p className="font-bold text-[10px] text-zinc-300">R{r.id}</p><p className="text-[9px] text-zinc-600">{formatEther(r.totalRaised)} ETH</p></div><button onClick={() => actions.withdraw(r.id)} className="px-2 py-0.5 bg-green-900/20 text-green-400 border border-green-900/50 text-[9px] font-bold uppercase rounded hover:bg-green-900/40">Withdraw</button></div>)))}
+                      {rounds.filter(r => r.successful && r.finalized && !r.fundsWithdrawn).length === 0 ? (<div className="text-[10px] text-zinc-600 text-center py-4">No funds to withdraw</div>) : (rounds.filter(r => r.successful && r.finalized && !r.fundsWithdrawn).map(r => (<div key={r.id} className="bg-black/20 p-2 rounded-lg flex justify-between items-center border border-white/5 shrink-0"><div><p className="font-bold text-[10px] text-zinc-300">ROUND {r.id}</p><p className="text-[9px] text-zinc-600">{formatEther(r.totalRaised)} ETH</p></div><button onClick={() => actions.withdraw(r.id)} className="px-2 py-0.5 bg-green-900/20 text-green-400 border border-green-900/50 text-[9px] font-bold uppercase rounded hover:bg-green-900/40">Withdraw</button></div>)))}
                    </div>
                </div>
              </div>
@@ -175,7 +157,11 @@ export default function Home() {
                     <div><label className="text-[9px] uppercase font-bold text-zinc-500 mb-1 block">Rate (Tkn/ETH)</label><input type="number" step="1" value={adminForm.rate} onChange={e => setAdminForm({...adminForm, rate: e.target.value})} className="w-full p-2 bg-black border border-zinc-800 rounded text-zinc-300 text-[10px] outline-none focus:border-zinc-600" /></div>
                   </div>
                   <div><label className="text-[9px] uppercase font-bold text-zinc-500 mb-1 block">Soft Cap (ETH)</label><input type="number" step="0.1" value={adminForm.cap} onChange={e => setAdminForm({...adminForm, cap: e.target.value})} className="w-full p-2 bg-black border border-zinc-800 rounded text-zinc-300 text-[10px] outline-none focus:border-zinc-600" /></div>
-                  <div className="flex-1 content-end"><button onClick={() => actions.startRound(adminForm.rate, adminForm.cap, adminForm.mins, adminForm.title, adminForm.desc)} className="w-full py-2 bg-blue-600 text-white rounded-lg font-black text-xs uppercase shadow-lg shadow-blue-900/20 hover:bg-blue-500 transition-all">Start Next</button></div>
+                  <div className="flex-1 content-end">
+                    <button onClick={() => actions.startRound(adminForm.rate, adminForm.cap, adminForm.mins, adminForm.title, adminForm.desc)} className="w-full py-2 bg-blue-600 text-white rounded-lg font-black text-xs uppercase shadow-lg shadow-blue-900/20 hover:bg-blue-500 transition-all">Start Next</button>
+                    {/* NOTIFICATION: Only one, right here */}
+                    {txStatus && <div className="mt-2 text-[9px] font-mono text-center text-zinc-500 animate-pulse">{txStatus}</div>}
+                  </div>
                </div>
              </div>
           </div>

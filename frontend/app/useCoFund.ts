@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { BrowserProvider, Contract, formatEther, parseEther } from "ethers";
 import { CONFIG } from "./config";
 import { SALE_ABI, ERC20_ABI } from "./abi";
-import { RoundInfo, SaleState, UserState, LeaderRow } from "./types";
+import { RoundInfo, SaleState, UserState, LeaderRow } from "../types";
 
 export function useCoFund() {
   const [account, setAccount] = useState<string>("");
@@ -13,16 +13,79 @@ export function useCoFund() {
   const [leaderboard, setLeaderboard] = useState<LeaderRow[]>([]);
   const [txStatus, setTxStatus] = useState("");
 
-  // --- Providers & Contracts ---
   const anyWindow = typeof window !== "undefined" ? (window as any) : null;
   const provider = useMemo(() => anyWindow?.ethereum ? new BrowserProvider(anyWindow.ethereum) : null, [anyWindow]);
   const saleRO = useMemo(() => provider ? new Contract(CONFIG.saleProxyAddress, SALE_ABI, provider) : null, [provider]);
   const tokenRO = useMemo(() => provider ? new Contract(CONFIG.tokenAddress, ERC20_ABI, provider) : null, [provider]);
 
-  // --- Helpers ---
+  // --- ACTIONS ---
+
+  const connect = async () => {
+    if (!anyWindow?.ethereum) return alert("Install MetaMask");
+    try {
+      const accs = await anyWindow.ethereum.request({ method: "eth_requestAccounts" });
+      const newAccount = accs[0];
+      setAccount(newAccount);
+      localStorage.setItem("connectedAccount", newAccount); // Save to storage
+      checkChain();
+    } catch (e) { console.error(e); }
+  };
+
+  const disconnect = () => { 
+    setAccount(""); 
+    setUser(null); 
+    setSale(null);
+    localStorage.removeItem("connectedAccount"); // Clear storage
+  };
+
+  const checkChain = async () => {
+    if(!provider) return;
+    const net = await provider.getNetwork();
+    setChainOk(Number(net.chainId) === CONFIG.chainId);
+  };
+
+  // --- PERSISTENCE (Strict Mode) ---
+  useEffect(() => {
+    if (!anyWindow?.ethereum) return;
+
+    // 1. Load from Storage (Ignore what MetaMask currently says)
+    const savedAccount = localStorage.getItem("connectedAccount");
+    if (savedAccount) {
+        setAccount(savedAccount);
+        checkChain();
+    }
+
+    // 2. Chain Changed -> Reload (Standard safety)
+    const handleChainChanged = () => window.location.reload();
+    anyWindow.ethereum.on('chainChanged', handleChainChanged);
+
+    // 3. Accounts Changed -> DO NOTHING (User wants manual control)
+    // We only disconnect if the wallet is completely locked/empty
+    const handleAccountsChanged = (accs: string[]) => {
+      if (accs.length === 0) disconnect();
+    };
+    anyWindow.ethereum.on('accountsChanged', handleAccountsChanged);
+
+    return () => {
+      if (anyWindow.ethereum.removeListener) {
+        anyWindow.ethereum.removeListener('chainChanged', handleChainChanged);
+        anyWindow.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+      }
+    };
+  }, [anyWindow]);
+
+  // --- TRANSACTION HANDLER (With Safety Check) ---
   const getSignerContract = async () => {
     if (!provider) throw new Error("No provider");
     const signer = await provider.getSigner();
+    
+    // SAFETY CHECK: Ensure MetaMask active account matches our dApp state
+    const signerAddress = await signer.getAddress();
+    if (signerAddress.toLowerCase() !== account.toLowerCase()) {
+      alert(`⚠️ Wallet Mismatch!\n\nYou are connected to this app as:\n${shortAddr(account)}\n\nBut your MetaMask is set to:\n${shortAddr(signerAddress)}\n\nPlease switch MetaMask back to the connected account.`);
+      throw new Error("Wallet mismatch");
+    }
+    
     return new Contract(CONFIG.saleProxyAddress, SALE_ABI, signer);
   };
 
@@ -34,34 +97,24 @@ export function useCoFund() {
       setTxStatus(`Waiting for ${name}...`);
       await tx.wait();
       setTxStatus(`✅ ${name} Success!`);
-      await refreshAll(); // Auto-refresh data
+      setTimeout(() => setTxStatus(""), 5000);
+      await refreshAll();
     } catch (e: any) {
       console.error(e);
-      setTxStatus(`❌ Error: ${e.shortMessage || e.message || "Failed"}`);
+      if (e.message !== "Wallet mismatch") {
+        setTxStatus(`❌ Error: ${e.shortMessage || e.message || "Failed"}`);
+      } else {
+        setTxStatus(""); 
+      }
     }
   };
 
-  // --- Actions ---
-  const connect = async () => {
-    if (!anyWindow?.ethereum) return alert("Install MetaMask");
-    const accs = await anyWindow.ethereum.request({ method: "eth_requestAccounts" });
-    setAccount(accs[0]);
-    checkChain();
-  };
+  function shortAddr(a: string) { return a ? `${a.slice(0, 6)}...${a.slice(-4)}` : ""; }
 
-  const disconnect = () => { setAccount(""); setUser(null); setSale(null); };
-
-  const checkChain = async () => {
-    if(!provider) return;
-    const net = await provider.getNetwork();
-    setChainOk(Number(net.chainId) === CONFIG.chainId);
-  };
-
-  // --- Data Fetching ---
+  // --- DATA SYNC ---
   const refreshAll = useCallback(async () => {
     if (!saleRO || !tokenRO) return;
     try {
-      // 1. Sale Global State
       const [owner, treasury, cRound] = await Promise.all([
         saleRO.owner(), saleRO.treasury(), saleRO.currentRound().catch(() => 0n)
       ]);
@@ -82,7 +135,6 @@ export function useCoFund() {
       }
       setSale(sState);
 
-      // 2. User State
       const [symbol, decimals, walletBal] = await Promise.all([
         tokenRO.symbol(), tokenRO.decimals(), account ? tokenRO.balanceOf(account) : 0n
       ]);
@@ -96,7 +148,6 @@ export function useCoFund() {
       }
       setUser({ contributionWei: uC, entitlementTokens: uE, tokenBalance: walletBal, tokenSymbol: symbol, tokenDecimals: Number(decimals) });
 
-      // 3. Rounds History
       const hist: RoundInfo[] = [];
       for (let i = 1; i <= Number(cRound); i++) {
         const [r, uCont, uEnt, uClm] = await Promise.all([
@@ -152,21 +203,8 @@ export function useCoFund() {
     } catch (e) { console.error("Leaderboard Error", e); }
   }, [saleRO]);
 
-  // --- Effects ---
-  useEffect(() => {
-    if (!anyWindow?.ethereum) return;
-    anyWindow.ethereum.request({ method: 'eth_accounts' }).then((accs: string[]) => {
-      if (accs.length > 0) { setAccount(accs[0]); checkChain(); }
-    });
-    anyWindow.ethereum.on('accountsChanged', (accs: string[]) => {
-       if(accs.length) setAccount(accs[0]); else disconnect();
-    });
-    anyWindow.ethereum.on('chainChanged', () => window.location.reload());
-  }, [anyWindow]);
-
   useEffect(() => { refreshAll(); refreshLeaderboard(); }, [refreshAll, refreshLeaderboard]);
 
-  // --- Exports ---
   return {
     account, chainOk, sale, user, rounds, leaderboard, txStatus,
     connect, disconnect, refreshLeaderboard,
