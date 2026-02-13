@@ -151,16 +151,26 @@ export function useCoFund() {
       const hist: RoundInfo[] = [];
       for (let i = 1; i <= Number(cRound); i++) {
         const [r, uCont, uEnt, uClm] = await Promise.all([
-          saleRO.rounds(i), 
+          saleRO.getRoundInfo(i), 
           account ? saleRO.contributionByRound(i, account) : 0n,
           account ? saleRO.entitlementByRound(i, account) : 0n,
           account ? saleRO.claimedOrRefundedByRound(i, account) : false
         ]);
         hist.push({
-          id: i, rate: r.rate, softCapWei: r.softCapWei, endTime: r.endTime, totalRaised: r.totalRaised,
-          finalized: r.finalized, successful: r.successful, fundsWithdrawn: r.fundsWithdrawn,
-          title: r.title, description: r.description,
-          userContribution: uCont, userEntitlement: uEnt, userClaimed: uClm
+          id: i,
+          rate: r.rate,
+          softCapWei: r.softCap, // Note: getRoundInfo returns 'softCap', not 'softCapWei'
+          endTime: r.endTime,
+          totalRaised: r.totalRaised,
+          finalized: r.finalized,
+          successful: r.successful,
+          fundsWithdrawn: false,
+          title: r.title,       
+          description: r.description,
+          
+          userContribution: uCont,
+          userEntitlement: uEnt,
+          userClaimed: uClm
         });
       }
       setRounds(hist.reverse());
